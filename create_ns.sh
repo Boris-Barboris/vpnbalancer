@@ -7,8 +7,12 @@ set -eux
 
 NS_COUNT=3
 
+echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
+echo 1 > /proc/sys/net/ipv4/conf/default/rp_filter
+
 # northern SNAT namespace
 ip netns add vmux_nat
+ip netns exec vmux_nat bash -c "echo 1 > /proc/sys/net/ipv4/conf/default/forwarding"
 ip link add vmux_nat_veth_n type veth peer name vmux_nat_veth_s
 ip link set vmux_nat_veth_s netns vmux_nat
 ip link set vmux_nat_veth_n master br_main
@@ -26,10 +30,20 @@ ip netns exec vmux_app ip addr add 192.168.201.1/24 dev br_app
 ip netns exec vmux_app ip link set br_app up
 ip netns exec vmux_app ip link set lo up
 
+# connect default namespace to br_app via tap, making namespaced apps accesible in native LAN
+ip link add vmux_app_tap type veth peer name def_tap
+ip netns exec vmux_app ip addr add 192.168.1.80/24 dev br_app
+ip link set def_tap netns vmux_app
+ip netns exec vmux_app ip link set def_tap master br_app
+ip netns exec vmux_app ip link set def_tap up
+ip link set vmux_app_tap master br_main
+ip link set vmux_app_tap up
+
 # VPN routing namespaces
 
 function create_vpn_ns() {
     ip netns add vmux_vpn${1}
+    ip netns exec vmux_vpn${1} bash -c "echo 1 > /proc/sys/net/ipv4/conf/default/forwarding"
     ip link add vmux_vpn${1}_n type veth peer name vmux_vpn${1}_s
     ip link set vmux_vpn${1}_n netns vmux_nat
     ip link set vmux_vpn${1}_s netns vmux_vpn${1}
@@ -52,6 +66,7 @@ function create_vpn_ns() {
 
 # southern namespace routing shenanigans
 ip netns exec vmux_app ip route add default via 192.168.201.254 dev br_app    # this gateway does not exist
+ip netns exec vmux_app iptables -w -I OUTPUT -t mangle -d 192.168.1.0/24 -j ACCEPT
 ip netns exec vmux_app iptables -w -A OUTPUT -t mangle -j CONNMARK --restore-mark
 # rule to increase counter to 3 for connection in NEW conntrack state
 ip netns exec vmux_app iptables -w -A OUTPUT -t mangle -m conntrack --ctstate NEW -m mark --mark 0x10000000/0xFFFF0000 -j MARK --set-mark 0x20000000/0xFFFF0000
