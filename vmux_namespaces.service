@@ -1,0 +1,15 @@
+[Unit]
+Description=Configure custom namespaces, required for VPN loadbalancing
+After=network-online.target
+After=systemd-networkd.service
+After=libvirtd.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/local/sbin/create_ns.sh
+ExecStop=/usr/local/sbin/clear_ns.sh
+
+[Install]
+WantedBy=multi-user.target

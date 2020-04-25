@@ -1,0 +1,14 @@
+[Unit]
+Description=OpenVPN tunnel for vmux_vpn1 namespace
+After=vmux_namespaces.service
+Requires=vmux_namespaces.service
+
+[Service]
+Type=simple
+WorkingDirectory=/etc/openvpn/client
+ExecStart=/usr/bin/ip netns exec vmux_vpn1 openvpn --nobind --config CHANGEME.conf --log /var/log/openvpn1.log
+RestartSec=10s
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
