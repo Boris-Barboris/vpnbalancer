@@ -5,12 +5,19 @@ set -eux
 # n suffix = north
 # s suffix = south
 
+# number of vpn namespaces, should be equal to number of openvpn clients you are going to run.
 NS_COUNT=3
-LAN_SUBNET="192.168.1.0/24"
-LAN_DEFAULT_GW="192.168.1.254"
-NAT_EGRESS_IP="192.168.1.85/24"
-APP_LAN_IP="192.168.1.80/24"
+# name of main bridge in default namespace tapped into your LAN.
 DEFAULT_NS_BRIDGE="br_main"
+# in order to access processes in app namespace from LAN, firewall must know LAN subnet CIDR.
+LAN_SUBNET="192.168.1.0/24"
+# default gateway of your LAN that should route internet traffic
+LAN_DEFAULT_GW="192.168.1.254"
+# IP to assign to NAT egress interface. Must be allocated from your LAN subnet.
+NAT_EGRESS_IP="192.168.1.85/24"
+# IP to assign to app namespace bridge. Must be allocated from your LAN subnet. Through this IP you can access
+# servers that use vmux_app namespace and route internet traffic through VPNs but can still respond to LAN requests.
+APP_LAN_IP="192.168.1.80/24"
 
 echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
 echo 1 > /proc/sys/net/ipv4/conf/default/rp_filter
