@@ -34,7 +34,7 @@ Name=br_main
 [Network]
 DNS=8.8.8.8
 DNS=8.8.4.4
-Address=192.168.1.71/24
+Address=192.168.1.50/24
 Gateway=192.168.1.254
 LinkLocalAddressing=no
 IPv6AcceptRA=no
