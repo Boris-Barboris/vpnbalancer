@@ -11,14 +11,17 @@ NS_COUNT=3
 DEFAULT_NS_BRIDGE="br_main"
 # in order to access processes in app namespace from LAN, firewall must know LAN subnet CIDR.
 LAN_SUBNET="192.168.1.0/24"
-# default gateway of your LAN that should route internet traffic
+# default gateway in your LAN that should route traffic to the internet. Effectively, your router IP.
 LAN_DEFAULT_GW="192.168.1.254"
-# IP to assign to NAT egress interface. Must be allocated from your LAN subnet.
+# IP to assign to NAT egress interface. Must be statically allocated from your LAN subnet.
 NAT_EGRESS_IP="192.168.1.85/24"
-# IP to assign to app namespace bridge. Must be allocated from your LAN subnet. Through this IP you can access
-# servers that use vmux_app namespace and route internet traffic through VPNs but can still respond to LAN requests.
+# IP to assign to app namespace bridge. Must be statically allocated from your LAN subnet.
+# Through this IP you can access servers that use vmux_app namespace and
+# route internet traffic through VPNs but can still respond to LAN requests.
+# This is useful for things like squid proxy or torrent clients with web UI.
 APP_LAN_IP="192.168.1.80/24"
 
+# these may be unneeded in your configuration
 echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
 echo 1 > /proc/sys/net/ipv4/conf/default/rp_filter
 
