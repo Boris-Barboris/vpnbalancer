@@ -52,6 +52,7 @@ ip link set def_tap netns vmux_app
 ip netns exec vmux_app ip link set def_tap master br_app
 ip netns exec vmux_app ip link set def_tap up
 ip link set vmux_app_tap master $DEFAULT_NS_BRIDGE
+ip netns exec vmux_app ip -6 addr flush br_app
 ip link set vmux_app_tap up
 
 # VPN routing namespaces

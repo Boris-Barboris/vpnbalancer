@@ -60,7 +60,30 @@ ip netns
 ip netns exec vmux_app curl google.com
 ip netns exec vmux_app ping 8.8.8.8
 ```
-6. Run your apps (browser, torrents, whatever) in vmux_app namespace using ip netns exec command.
+6. Setup alternative nsswitch.conf for your application namespace to prevent dns leaks through dbus/systemd-resolved:
+```
+cat /etc/netns/vmux_app/nsswitch.conf
+
+# Name Service Switch configuration file.
+# See nsswitch.conf(5) for details.
+
+passwd: files systemd
+group: files systemd
+shadow: files
+
+publickey: files
+
+hosts: files mymachines myhostname dns
+networks: files
+
+protocols: files
+services: files
+ethers: files
+rpc: files
+
+netgroup: files
+```
+7. Run your apps (browser, torrents, whatever) in vmux_app namespace using ip netns exec command.
 
 ## Interface and namespace shema:
 <img src="./Diagram.svg">
