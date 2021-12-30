@@ -10,16 +10,16 @@ NS_COUNT=3
 # name of main bridge in default namespace tapped into your LAN.
 DEFAULT_NS_BRIDGE="br_main"
 # in order to access processes in app namespace from LAN, firewall must know LAN subnet CIDR.
-LAN_SUBNET="192.168.1.0/24"
+LAN_SUBNET="192.168.42.0/24"
 # default gateway in your LAN that should route traffic to the internet. Effectively, your router IP.
-LAN_DEFAULT_GW="192.168.1.254"
+LAN_DEFAULT_GW="192.168.42.1"
 # IP to assign to NAT egress interface. Must be statically allocated from your LAN subnet.
-NAT_EGRESS_IP="192.168.1.85/24"
+NAT_EGRESS_IP="192.168.42.85/24"
 # IP to assign to app namespace bridge. Must be statically allocated from your LAN subnet.
 # Through this IP you can access servers that use vmux_app namespace and
 # route internet traffic through VPNs but can still respond to LAN requests.
 # This is useful for things like squid proxy or torrent clients with web UI.
-APP_LAN_IP="192.168.1.80/24"
+APP_LAN_IP="192.168.42.80/24"
 
 # these may be unneeded in your configuration
 echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
@@ -40,6 +40,9 @@ ip netns exec vmux_nat ip link set lo up
 
 # southern namespace for applications under vpn
 ip netns add vmux_app
+ip netns exec vmux_app bash -c "sysctl -w net.ipv6.conf.all.disable_ipv6=1"
+ip netns exec vmux_app bash -c "sysctl -w net.ipv6.conf.default.disable_ipv6=1"
+ip netns exec vmux_app bash -c "sysctl -w net.ipv6.conf.lo.disable_ipv6=1"
 ip netns exec vmux_app ip link add name br_app type bridge
 ip netns exec vmux_app ip addr add 192.168.201.1/24 dev br_app
 ip netns exec vmux_app ip link set br_app up
@@ -60,6 +63,10 @@ ip link set vmux_app_tap up
 function create_vpn_ns() {
     ip netns add vmux_vpn${1}
     ip netns exec vmux_vpn${1} bash -c "echo 1 > /proc/sys/net/ipv4/conf/default/forwarding"
+    # disable ipv6
+    ip netns exec vmux_vpn${1} bash -c "sysctl -w net.ipv6.conf.all.disable_ipv6=1"
+    ip netns exec vmux_vpn${1} bash -c "sysctl -w net.ipv6.conf.default.disable_ipv6=1"
+    ip netns exec vmux_vpn${1} bash -c "sysctl -w net.ipv6.conf.lo.disable_ipv6=1"
     ip link add vmux_vpn${1}_n type veth peer name vmux_vpn${1}_s
     ip link set vmux_vpn${1}_n netns vmux_nat
     ip link set vmux_vpn${1}_s netns vmux_vpn${1}
