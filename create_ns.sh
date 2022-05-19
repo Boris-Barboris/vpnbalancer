@@ -43,6 +43,8 @@ ip netns add vmux_app
 ip netns exec vmux_app bash -c "sysctl -w net.ipv6.conf.all.disable_ipv6=1"
 ip netns exec vmux_app bash -c "sysctl -w net.ipv6.conf.default.disable_ipv6=1"
 ip netns exec vmux_app bash -c "sysctl -w net.ipv6.conf.lo.disable_ipv6=1"
+ip netns exec vmux_app bash -c "sysctl -w net.ipv4.fib_multipath_use_neigh=1"
+ip netns exec vmux_app bash -c "sysctl -w net.ipv4.fib_multipath_hash_policy=1"
 ip netns exec vmux_app ip link add name br_app type bridge
 ip netns exec vmux_app ip addr add 192.168.201.1/24 dev br_app
 ip netns exec vmux_app ip link set br_app up
@@ -50,9 +52,9 @@ ip netns exec vmux_app ip link set lo up
 
 # connect br_main to br_app via tap, making namespaced apps accesible in native LAN
 ip link add vmux_app_tap type veth peer name def_tap
-ip netns exec vmux_app ip addr add $APP_LAN_IP dev br_app
+ip netns exec vmux_app ip addr add $APP_LAN_IP dev def_tap
 ip link set def_tap netns vmux_app
-ip netns exec vmux_app ip link set def_tap master br_app
+# ip netns exec vmux_app ip link set def_tap master br_app
 ip netns exec vmux_app ip link set def_tap up
 ip link set vmux_app_tap master $DEFAULT_NS_BRIDGE
 ip netns exec vmux_app ip -6 addr flush br_app
@@ -76,7 +78,7 @@ function create_vpn_ns() {
     ip netns exec vmux_vpn${1} ip link set vmux_vpn${1}_s up
     ip netns exec vmux_vpn${1} ip route add default via 192.168.$((100 + ${1})).254 dev vmux_vpn${1}_s
     ip netns exec vmux_vpn${1} ip link set lo up
-    ip netns exec vmux_vpn${1} iptables -w -t nat -I POSTROUTING -o tun0 -j MASQUERADE # vmux_vpn${1}_s -> tun0
+    ip netns exec vmux_vpn${1} iptables -w -t nat -I POSTROUTING -s 192.168.201.1 -o tun${1} -j MASQUERADE # vmux_vpn${1}_s -> tun${1}
 
     # bind it with app ns via veth pair
     ip netns exec vmux_app ip link add app_vpn${1}_s type veth peer name app_vpn${1}_n
@@ -87,32 +89,14 @@ function create_vpn_ns() {
     ip netns exec vmux_app ip link set app_vpn${1}_s up
 }
 
-# southern namespace routing shenanigans
-ip netns exec vmux_app ip route add default via 192.168.201.254 dev br_app    # this gateway does not exist
-ip netns exec vmux_app iptables -w -I OUTPUT -t mangle -d $LAN_SUBNET -j ACCEPT
-ip netns exec vmux_app iptables -w -A OUTPUT -t mangle -j CONNMARK --restore-mark
-# rule to increase counter to 3 for connection in NEW conntrack state
-ip netns exec vmux_app iptables -w -A OUTPUT -t mangle -m conntrack --ctstate NEW -m mark --mark 0x10000000/0xFFFF0000 -j MARK --set-mark 0x20000000/0xFFFF0000
-ip netns exec vmux_app iptables -w -A OUTPUT -t mangle -m conntrack --ctstate NEW -m mark --mark 0x20000000/0xFFFF0000 -j MARK --set-mark 0
-ip netns exec vmux_app iptables -w -A OUTPUT -t mangle -m conntrack --ctstate NEW -m mark --mark 0x0/0xFFFF0000 -j MARK --set-mark 0x10000000/0xFFFF0000
-# ip netns exec vmux_app iptables -w -A OUTPUT -t mangle -m conntrack --ctstate NEW -m mark --mark 0x20000000/0xFFFF0000 -j MARK --set-mark 0x30000000/0x0
-# and finally we drop the mark routing mark if we hit three retries
-# just for new connections we spam save-mark
-ip netns exec vmux_app iptables -w -A OUTPUT -t mangle -m conntrack --ctstate NEW -j CONNMARK --save-mark
-# for packets with a routing mark we do nothing
-ip netns exec vmux_app iptables -w -A OUTPUT -t mangle -m mark ! --mark 0/0x0000FFFF -j ACCEPT
 
-# for packets without it we round-robin to vpn namespaces
 i=1
+DEF_ROUTE_STR="ip netns exec vmux_app ip route add default "
 while [[ $i -le $NS_COUNT ]]
 do
     create_vpn_ns $i
-    ip netns exec vmux_app ip rule add fwmark ${i}/0x0000ffff table $i
-    ip netns exec vmux_app ip route add default via 192.168.201.$((100 + i)) table $i
-    ip netns exec vmux_app iptables -w -A OUTPUT -t mangle -m statistic --mode nth --every $NS_COUNT --packet $((i - 1)) -j MARK --set-mark $i
+    DEF_ROUTE_STR="${DEF_ROUTE_STR} nexthop via 192.168.201.$((100 + ${i})) weight 1 "
     ((i = i + 1))
 done
 
-# fallback mark
-# ip netns exec vmux_app iptables -w -A OUTPUT -t mangle -m mark --mark 0/0x0000FFFF -j MARK --set-mark 1
-ip netns exec vmux_app iptables -w -A OUTPUT -t mangle -j CONNMARK --save-mark
+eval $DEF_ROUTE_STR
