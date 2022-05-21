@@ -15,6 +15,7 @@ import time
 
 CHECK_INTERVAL_ALIVE = 30
 CHECK_INTERVAL_DEAD = 10
+UNIT_RESTART_INTERVAL = 120
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -47,20 +48,32 @@ def set_veth_state(namespace_name: str, namespace_number: str, isUp: bool):
     subprocess.run(cmd, shell=True)
 
 
+def tryrestart_vpn_unit(namespace_number: str):
+    cmd = f"systemctl try-restart muxvpn{namespace_number}.service"
+    log.info(cmd)
+    subprocess.run(cmd, shell=True)
+
+
 def main():
     namespace_name = sys.argv[1]
     namespace_number = get_ns_number(namespace_name)
     vpn_alive = True
+    vpn_dead_counter = 0
     while True:
         vpn_alive = is_namespace_alive(namespace_name)
         if vpn_alive:
             log.debug("%s is alive", namespace_name)
+            vpn_dead_counter = 0
             set_veth_state(namespace_name, namespace_number, True)
             time.sleep(CHECK_INTERVAL_ALIVE)
         else:
             log.info("%s is dead", namespace_name)
             set_veth_state(namespace_name, namespace_number, False)
             time.sleep(CHECK_INTERVAL_DEAD)
+            vpn_dead_counter += CHECK_INTERVAL_DEAD
+            if vpn_dead_counter > UNIT_RESTART_INTERVAL:
+                vpn_dead_counter = 0
+                tryrestart_vpn_unit(namespace_number)
 
 
 if __name__ == '__main__':
