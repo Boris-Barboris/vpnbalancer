@@ -52,8 +52,8 @@ ip netns exec vmux_app ip link set lo up
 
 # connect br_main to br_app via tap, making namespaced apps accesible in native LAN
 ip link add vmux_app_tap type veth peer name def_tap
-ip netns exec vmux_app ip addr add $APP_LAN_IP dev def_tap
 ip link set def_tap netns vmux_app
+ip netns exec vmux_app ip addr add $APP_LAN_IP dev def_tap
 # ip netns exec vmux_app ip link set def_tap master br_app
 ip netns exec vmux_app ip link set def_tap up
 ip link set vmux_app_tap master $DEFAULT_NS_BRIDGE
