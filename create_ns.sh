@@ -69,7 +69,7 @@ function create_vpn_ns() {
     ip netns exec vmux_vpn${1} bash -c "sysctl -w net.ipv6.conf.all.disable_ipv6=1"
     ip netns exec vmux_vpn${1} bash -c "sysctl -w net.ipv6.conf.default.disable_ipv6=1"
     ip netns exec vmux_vpn${1} bash -c "sysctl -w net.ipv6.conf.lo.disable_ipv6=1"
-    ip link add vmux_vpn${1}_n mtu 1420 type veth peer name vmux_vpn${1}_s mtu 1420
+    ip link add vmux_vpn${1}_n type veth peer name vmux_vpn${1}_s
     ip link set vmux_vpn${1}_n netns vmux_nat
     ip link set vmux_vpn${1}_s netns vmux_vpn${1}
     ip netns exec vmux_nat ip addr add 192.168.$((100 + $1)).254/24 dev vmux_vpn${1}_n
