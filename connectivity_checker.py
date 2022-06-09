@@ -49,7 +49,7 @@ def set_veth_state(namespace_name: str, namespace_number: str, isUp: bool):
 
 
 def tryrestart_vpn_unit(namespace_number: str):
-    cmd = f"systemctl try-restart muxvpn{namespace_number}.service"
+    cmd = f"systemctl try-restart muxvpn@{namespace_number}.service"
     log.info(cmd)
     subprocess.run(cmd, shell=True)
 
