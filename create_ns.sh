@@ -89,6 +89,23 @@ function create_vpn_ns() {
     ip netns exec vmux_app ip link set app_vpn${1}_s up
 }
 
+# pfsense interfaces
+ip link add name br_pf_vmux mtu 1420 type bridge
+ip link set br_app up
+
+# vmux_app namespace veth
+ip link add pf_app_tap type veth peer name pf_tap
+ip link set pf_tap netns vmux_app
+ip netns exec vmux_app ip link set pf_tap up
+ip netns exec vmux_app ip link set pf_tap master br_app
+ip link set pf_app_tap master br_pf_vmux
+ip link set pf_app_tap up
+
+# default route via pfsense
+ip netns exec vmux_app ip route add default via 192.168.201.2
+
+# pfsense VM
+virsh start pfsense_vmux
 
 i=1
 DEF_ROUTE_STR="ip netns exec vmux_app ip route add default "
@@ -99,4 +116,4 @@ do
     ((i = i + 1))
 done
 
-eval $DEF_ROUTE_STR
+# eval $DEF_ROUTE_STR
