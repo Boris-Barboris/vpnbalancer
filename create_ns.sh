@@ -78,7 +78,7 @@ function create_vpn_ns() {
     ip netns exec vmux_vpn${1} ip link set vmux_vpn${1}_s up
     ip netns exec vmux_vpn${1} ip route add default via 192.168.$((100 + ${1})).254 dev vmux_vpn${1}_s
     ip netns exec vmux_vpn${1} ip link set lo up
-    ip netns exec vmux_vpn${1} iptables -w -t nat -I POSTROUTING -s 192.168.201.1 -o tun${1} -j MASQUERADE # vmux_vpn${1}_s -> tun${1}
+    ip netns exec vmux_vpn${1} iptables -w -t nat -I POSTROUTING -s 192.168.201.2 -o tun${1} -j MASQUERADE # vmux_vpn${1}_s -> tun${1}
 
     # bind it with app ns via veth pair
     ip netns exec vmux_app ip link add app_vpn${1}_s type veth peer name app_vpn${1}_n
